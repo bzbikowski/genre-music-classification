@@ -15,30 +15,43 @@ class Dataset(object):
         self.file_labels = None
         self.data = {}
         self.index = {"train": 0, "validate": 0, "test": 0}
+
+    def init_dataset(self):
         self.check_and_download_data()
         self.create_batches()
+
+    def init_test(self):
+        # todo check if model exists
+        self.check_and_download_data()
+        self.create_test()
 
     def __getitem__(self, item):
         return self.data[item]
 
-    def create_batches(self, val_size=100, test_size=200):
+    def create_batches(self, val_size=300):
         data, label = self.load_data()
 
         rand = list(zip(data, label))
         random.shuffle(rand)
         data, label = zip(*rand)
 
-        train_size = 1000 - val_size - test_size
+        train_size = 1000 - val_size
         train_data = data[0:train_size]
         train_labels = label[0:train_size]
-        val_data = data[train_size:train_size+val_size]
-        val_labels = label[train_size:train_size+val_size]
-        test_data = data[train_size+val_size:]
-        test_labels = label[train_size+val_size:]
+        val_data = data[train_size:]
+        val_labels = label[train_size:]
 
         self.data["train"] = {"data": train_data, "labels": train_labels, "size": len(train_labels)}
         self.data["validate"] = {"data": val_data, "labels": val_labels, "size": len(val_labels)}
-        self.data["test"] = {"data": test_data, "labels": test_labels, "size": len(test_labels)}
+
+    def create_test(self):
+        data, label = self.load_data()
+
+        rand = list(zip(data, label))
+        random.shuffle(rand)
+        data, label = zip(*rand)
+
+        self.data["test"] = {"data": data, "labels": label, "size": len(label)}
 
     def check_and_download_data(self):
         # todo check if it's working
@@ -94,7 +107,7 @@ class Dataset(object):
         return [np.array(data), np.array(labels)]
 
     def process_data(self, path):
-        Fs = 22050
+        Fs = 11000
         N_FFT = 512
         N_MELS = 96
         N_OVERLAP = 256
@@ -108,6 +121,7 @@ class Dataset(object):
         elif n_sample > n_sample_fit:
             signal = signal[int((n_sample - n_sample_fit) / 2):int((n_sample + n_sample_fit) / 2)]
 
-        melspect = lb.core.amplitude_to_db(
-            lb.feature.melspectrogram(y=signal, sr=Fs, hop_length=N_OVERLAP, n_fft=N_FFT, n_mels=N_MELS) ** 2)
+        melspect = lb.core.power_to_db(
+            lb.feature.melspectrogram(y=signal, sr=Fs, hop_length=N_OVERLAP, n_fft=N_FFT, n_mels=N_MELS))
+
         return melspect

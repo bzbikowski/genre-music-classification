@@ -1,15 +1,13 @@
 # Diagnostyka przemysłowa (fault detection and isolation)
 # Klasyfikacja utworów muzyczych do różnych gatunków muzycznych
-import tensorflow as tf
-import os
 from src.dataset import Dataset
-from src.crnn import CRNN
+from src.cnn import CNN
 
 
 def main():
     dataset = Dataset()
-    net = CRNN(dataset)
-    net.start()
+    net = CNN(dataset)
+    net.start_test(20300)
 
 
 if __name__ == "__main__":

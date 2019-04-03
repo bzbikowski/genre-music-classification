@@ -2,14 +2,14 @@
 
 Classification of the music tracks to different music genres.
 
-###Description
+### Description
 
 Work in progress...
 
-###Database:
+### Database:
 
 GTZAN - 1000 tracks - 30 seconds - 10 genres, 100 tracks each
 
-###Links:
+### Links:
 
 Database - http://opihi.cs.uvic.ca/sound/genres.tar.gz

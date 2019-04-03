@@ -9,7 +9,6 @@ class CNN(object):
         self.n_epoch = 1000
         self.n_samples = 1000
 
-        self.global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
         self.X = tf.placeholder("float", [None, 96, 1290, 1])
         self.phase_train = tf.placeholder(tf.bool, name='phase_train')
         self.dropout_rate = tf.placeholder(tf.float32, name='dropout_rate')
@@ -84,20 +83,23 @@ class CNN(object):
             normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
         return normed
 
-    def start_train(self, model_nr):
+    def start_train(self):
         y = tf.placeholder("float", [None, 10])
         lrate = tf.placeholder("float")
         out, saver = self.init_data()
         self.dataset.init_dataset()
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=out))
-        train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(cost, global_step=self.global_step)
+        train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(cost)
         correct_prediction = tf.equal(tf.argmax(out, 1), tf.argmax(y, 1))
         correct_prediction = tf.cast(correct_prediction, tf.float32)
         accuracy = tf.reduce_mean(correct_prediction)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            saver = tf.train.import_meta_graph(f'./model/my-model.ckpt-{model_nr}.meta')
-            saver.restore(sess, f"./model/my-model.ckpt-{model_nr}")
+            try:
+                saver = tf.train.import_meta_graph(f'./model/my-model.ckpt.meta')
+                saver.restore(sess, f"./model/my-model.ckpt")
+            except OSError as e:
+                pass
             for i in range(self.n_epoch):
                 print("Epoka {}".format(i))
                 for _ in range(int(self.dataset["train"]["size"] / self.batch_size)):
@@ -109,7 +111,7 @@ class CNN(object):
                                         self.dropout_rate: 0.5}
                     sess.run(train_op, feed_dict=train_input_dict)
                 if i % 5 == 0:
-                    saver.save(sess, './model/my-model.ckpt', global_step=self.global_step)
+                    saver.save(sess, './model/my-model.ckpt')
                     sum = 0
                     size = int(self.dataset["validate"]["size"] / self.batch_size)
                     for _ in range(size):
@@ -119,7 +121,7 @@ class CNN(object):
                         sum += accuracy.eval(feed_dict=test_input_dict)
                     print("Validate: {}".format(sum / size))
 
-    def start_test(self, model_nr):
+    def start_test(self):
         y = tf.placeholder("float", [None, 10])
         out, _ = self.init_data()
         # correct_prediction = tf.equal(tf.argmax(out, 1), tf.argmax(y, 1))
@@ -136,8 +138,8 @@ class CNN(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
-            saver = tf.train.import_meta_graph(f'./model/my-model.ckpt-{model_nr}.meta')
-            saver.restore(sess, f"./model/my-model.ckpt-{model_nr}")
+            saver = tf.train.import_meta_graph(f'./model/my-model.ckpt.meta')
+            saver.restore(sess, f"./model/my-model.ckpt")
             self.dataset.init_test()
             size = int(self.dataset["test"]["size"] / self.batch_size)
             for _ in range(size):

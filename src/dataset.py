@@ -3,11 +3,13 @@ import tarfile
 import os
 import numpy as np
 import sys
+import pickle
 from tqdm import tqdm
 import pandas as pd
 import math
 import librosa as lb
 import random
+import shutil
 
 
 class Dataset(object):
@@ -18,43 +20,51 @@ class Dataset(object):
 
     def init_dataset(self):
         self.check_and_download_data()
-        self.create_batches()
+        self.create_train()
 
     def init_test(self):
-        # todo check if model exists
         self.check_and_download_data()
         self.create_test()
 
     def __getitem__(self, item):
         return self.data[item]
 
-    def create_batches(self, val_size=300):
+    def create_batches(self, val_size=150, test_size=100):
         data, label = self.load_data()
+        # todo split genres equally
 
         rand = list(zip(data, label))
         random.shuffle(rand)
         data, label = zip(*rand)
 
-        train_size = 1000 - val_size
+        train_size = 1000 - val_size - test_size
         train_data = data[0:train_size]
         train_labels = label[0:train_size]
-        val_data = data[train_size:]
-        val_labels = label[train_size:]
+        val_data = data[train_size:train_size+val_size]
+        val_labels = label[train_size:train_size+val_size]
+        test_data = data[train_size+val_size:]
+        test_labels = label[train_size + val_size:]
 
-        self.data["train"] = {"data": train_data, "labels": train_labels, "size": len(train_labels)}
-        self.data["validate"] = {"data": val_data, "labels": val_labels, "size": len(val_labels)}
+        # pickle this data for later use
+        with open("data/train.pkl", "wb+") as f:
+            pickle.dump({"data": train_data, "labels": train_labels, "size": len(train_labels)}, f)
+        with open("data/validate.pkl", "wb+") as f:
+            pickle.dump({"data": val_data, "labels": val_labels, "size": len(val_labels)}, f)
+        with open("data/test.pkl", "wb+") as f:
+            pickle.dump({"data": test_data, "labels": test_labels, "size": len(test_labels)}, f)
+        # todo cleanup downloaded files
+
+    def create_train(self):
+        with open("data/train.pkl", "rb") as f:
+            self.data["train"] = pickle.load(f)
+        with open("data/validate.pkl", "rb") as f:
+            self.data["validate"] = pickle.load(f)
 
     def create_test(self):
-        data, label = self.load_data()
-
-        rand = list(zip(data, label))
-        random.shuffle(rand)
-        data, label = zip(*rand)
-
-        self.data["test"] = {"data": data, "labels": label, "size": len(label)}
+        with open("data/test.pkl", "rb") as f:
+            self.data["test"] = pickle.load(f)
 
     def check_and_download_data(self):
-        # todo check if it's working
         allFilesExists = True
         if os.path.exists('data/labels.csv'):
             labels_file = 'data/labels.csv'
@@ -69,7 +79,11 @@ class Dataset(object):
             allFilesExists = False
         if allFilesExists:
             return
-        # todo clean all data
+        # clean data folder and create new one
+        if os.path.exists('data/genres'):
+            shutil.rmtree('data/genres')
+        os.mkdir("data/genres")
+
         if not os.path.exists('./genres.tar.gz'):
             url = 'http://opihi.cs.uvic.ca/sound/genres.tar.gz'
             response = requests.get(url, stream=True)
@@ -81,6 +95,7 @@ class Dataset(object):
                     handle.write(data)
         with tarfile.open("./genres.tar.gz", "r:gz") as file:
             file.extractall('data')
+        self.create_batches()
 
     def load_data(self):
         d = np.asarray([self.process_data(path) for path in self.file_labels.iloc[:, 0]])

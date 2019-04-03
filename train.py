@@ -5,7 +5,7 @@ from src.cnn import CNN
 def main():
     dataset = Dataset()
     net = CNN(dataset)
-    net.start_train(18550)
+    net.start_train()
 
 
 if __name__ == "__main__":

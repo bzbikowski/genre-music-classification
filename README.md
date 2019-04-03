@@ -1,9 +1,15 @@
-# Diagnostyka
+# Genre music classification
 
-Klasyfikacja utworów muzyczych do różnych gatunków muzycznych.
+Classification of the music tracks to different music genres.
 
-Baza danych: http://opihi.cs.uvic.ca/sound/genres.tar.gz
+###Description
 
-GTZAN - 1000 utworów - 30 s - 10 gatunków po 100 utworów
+Work in progress...
 
-Batch normalization: https://gist.github.com/shagunsodhani/4441216a298df0fe6ab0
+###Database:
+
+GTZAN - 1000 tracks - 30 seconds - 10 genres, 100 tracks each
+
+###Links:
+
+Database - http://opihi.cs.uvic.ca/sound/genres.tar.gz

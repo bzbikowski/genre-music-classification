@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 class CNN(object):
@@ -124,9 +125,6 @@ class CNN(object):
     def start_test(self):
         y = tf.placeholder("float", [None, 10])
         out, _ = self.init_data()
-        # correct_prediction = tf.equal(tf.argmax(out, 1), tf.argmax(y, 1))
-        # correct_prediction = tf.cast(correct_prediction, tf.float32)
-        # accuracy = tf.reduce_mean(correct_prediction)
 
         accuracy, accuracy_update = tf.metrics.accuracy(tf.argmax(y, 1), tf.argmax(out, 1), name='accuracy')
 
@@ -148,7 +146,9 @@ class CNN(object):
                 sess.run(test_op, feed_dict=test_input_dict)
             result = sess.run(accuracy)
             print(f"Test: {result}%")
-            print(confusion.eval(sess))
+            conf_array = confusion.eval(sess)
+            print(conf_array)
+            np.savetxt("model/matrix.txt", conf_array)
 
     def init_weights(self, shape):
         return tf.Variable(tf.random_normal(shape, stddev=0.01))

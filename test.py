@@ -1,5 +1,4 @@
-from src.dataset import Dataset
-from src.cnn import CNN
+from src import Dataset, CNN
 
 
 def main():

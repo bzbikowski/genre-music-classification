@@ -1,5 +1,7 @@
 data/genres/
+data/*.pkl
 .idea/
 __pycache__/
 .venv/
 model/
+*.tar.gz

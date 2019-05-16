@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 
 
 class CNN(object):
@@ -7,7 +8,7 @@ class CNN(object):
         self.dataset = dataset
         self.learning_rate = 1e-3
         self.batch_size = 4
-        self.n_epoch = 1000
+        self.n_epoch = 100000
         self.n_samples = 1000
 
         self.X = tf.placeholder("float", [None, 96, 1290, 1])
@@ -15,6 +16,10 @@ class CNN(object):
         self.dropout_rate = tf.placeholder(tf.float32, name='dropout_rate')
 
     def init_data(self):
+        """
+        Create convolution neural network for audio classification problem.
+        :return: output layer, Saver class
+        """
         weights = {
             'wconv1': self.init_weights([3, 3, 1, 32]),
             'wconv2': self.init_weights([3, 3, 32, 64]),
@@ -66,7 +71,16 @@ class CNN(object):
 
         return p_y_X, saver
 
-    def batch_norm(self, x, n_out, phase_train, scope='bn'):
+    @staticmethod
+    def batch_norm(x, n_out, phase_train, scope='bn'):
+        """
+        TODO: complete doc
+        :param x:
+        :param n_out:
+        :param phase_train:
+        :param scope:
+        :return:
+        """
         with tf.variable_scope(scope):
             beta = tf.Variable(tf.constant(0.0, shape=[n_out]), name='beta', trainable=True)
             gamma = tf.Variable(tf.constant(1.0, shape=[n_out]), name='gamma', trainable=True)
@@ -85,10 +99,13 @@ class CNN(object):
         return normed
 
     def start_train(self):
+        """
+        TODO: complete doc
+        :return:
+        """
         y = tf.placeholder("float", [None, 10])
         lrate = tf.placeholder("float")
         out, saver = self.init_data()
-        self.dataset.init_dataset()
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=out))
         train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(cost)
         correct_prediction = tf.equal(tf.argmax(out, 1), tf.argmax(y, 1))
@@ -97,12 +114,16 @@ class CNN(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             try:
-                saver = tf.train.import_meta_graph(f'./model/my-model.ckpt.meta')
-                saver.restore(sess, f"./model/my-model.ckpt")
+                file_path, step = self.return_last_checkpoint()
+                saver = tf.train.import_meta_graph('{}.meta'.format(file_path))
+                saver.restore(sess, file_path)
+                print(f"Found checkpoint under {file_path}. Continuing from this point...")
             except OSError as e:
-                pass
-            for i in range(self.n_epoch):
-                print("Epoka {}".format(i))
+                print("Any checkpoint was not found. Creating new checkpoint...")
+            self.dataset.init_dataset()
+            for i in range(step+1, self.n_epoch):
+                print("Epoch {}".format(i))
+                # train
                 for _ in range(int(self.dataset["train"]["size"] / self.batch_size)):
                     batch = self.dataset.next_batch("train", self.batch_size)
                     train_input_dict = {self.X: batch[0],
@@ -112,7 +133,8 @@ class CNN(object):
                                         self.dropout_rate: 0.5}
                     sess.run(train_op, feed_dict=train_input_dict)
                 if i % 5 == 0:
-                    saver.save(sess, './model/my-model.ckpt')
+                    # validate every five epochs
+                    saver.save(sess, './model/my-model.ckpt', global_step=i)
                     sum = 0
                     size = int(self.dataset["validate"]["size"] / self.batch_size)
                     for _ in range(size):
@@ -120,9 +142,13 @@ class CNN(object):
                         test_input_dict = {self.X: batch[0], y: batch[1],
                                            self.phase_train: True, self.dropout_rate: 1.0}
                         sum += accuracy.eval(feed_dict=test_input_dict)
-                    print("Validate: {}".format(sum / size))
+                    print("Validate:   {}".format(sum / size))
 
     def start_test(self):
+        """
+        TODO: complete doc
+        :return:
+        """
         y = tf.placeholder("float", [None, 10])
         out, _ = self.init_data()
 
@@ -136,8 +162,14 @@ class CNN(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
-            saver = tf.train.import_meta_graph(f'./model/my-model.ckpt.meta')
-            saver.restore(sess, f"./model/my-model.ckpt")
+            try:
+                file_path, _ = self.return_last_checkpoint()
+                saver = tf.train.import_meta_graph(f'./model/{file_path}.meta')
+                saver.restore(sess, f"./model/{file_path}")
+                print(f"Found checkpoint under {file_path}. Starting test...")
+            except OSError:
+                print("Any checkpoint was not found. Exiting now...")
+                return
             self.dataset.init_test()
             size = int(self.dataset["test"]["size"] / self.batch_size)
             for _ in range(size):
@@ -147,11 +179,24 @@ class CNN(object):
             result = sess.run(accuracy)
             print(f"Test: {result}%")
             conf_array = confusion.eval(sess)
-            print(conf_array)
             np.savetxt("model/matrix.txt", conf_array)
+            print("Confusion matrix saved under ./model/matrix.txt file")
 
-    def init_weights(self, shape):
+    @staticmethod
+    def init_weights(shape):
         return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
-    def init_biases(self, shape):
+    @staticmethod
+    def init_biases(shape):
         return tf.Variable(tf.zeros(shape))
+
+    @staticmethod
+    def return_last_checkpoint():
+        """
+        TODO: complete doc
+        :return:
+        """
+        checkpoint_dir = "./model/"
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        step = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[2])
+        return ckpt.model_checkpoint_path, step
